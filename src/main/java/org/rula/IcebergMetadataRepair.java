@@ -46,7 +46,7 @@ public class IcebergMetadataRepair {
             // Configure Iceberg catalog
             GlueCatalog catalog = new GlueCatalog();
             Map<String, String> properties = Map.of(
-                    "warehouse", "s3://rula-securitylake-prod20250506195612306300000005", // Replace with your S3 path
+                    "warehouse", "s3://bucket_name", // Replace with your S3 path
                     "catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog",
                     "io-impl", "org.apache.iceberg.aws.s3.S3FileIO"
             );
