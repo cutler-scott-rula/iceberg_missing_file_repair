@@ -11,6 +11,9 @@ import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
 public class IcebergMetadataRepair {
 
@@ -21,32 +24,31 @@ public class IcebergMetadataRepair {
     }
 
     public static void main(String[] args) {
-        if (args.length < 5) {
-            System.out.println("Usage: IcebergMetadataRepair <aws-profile> <catalog-name> <database-name> <table-name> <file-uri>");
-            System.out.println("Example: IcebergMetadataRepair my-profile my-catalog my_db my_table s3://bucket/path/to/file.parquet");
+        if (args.length < 4) {
+            System.err.println("Usage: IcebergMetadataRepair <catalogName> <databaseName> <tableName> <filePath>");
             System.exit(1);
         }
 
-        String awsProfile = args[0];
-        String catalogName = args[1];
-        String databaseName = args[2];
-        String tableName = args[3];
-        String fileUri = args[4];
+        String catalogName = args[0];
+        String databaseName = args[1];
+        String tableName = args[2];
+        String filePath = args[3]; // Path to the URI list file
+
 
         try {
             // Create AWS clients with profile credentials
             S3Client s3 = S3Client.builder()
-                    .credentialsProvider(ProfileCredentialsProvider.create(awsProfile))
+                    .credentialsProvider(ProfileCredentialsProvider.create())
                     .build();
 
             GlueClient glue = GlueClient.builder()
-                    .credentialsProvider(ProfileCredentialsProvider.create(awsProfile))
+                    .credentialsProvider(ProfileCredentialsProvider.create())
                     .build();
 
             // Configure Iceberg catalog
             GlueCatalog catalog = new GlueCatalog();
             Map<String, String> properties = Map.of(
-                    "warehouse", "s3://bucket_name", // Replace with your S3 path
+                    "warehouse", "s3://rula-securitylake-prod20250506195612306300000005", // Replace with your S3 path
                     "catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog",
                     "io-impl", "org.apache.iceberg.aws.s3.S3FileIO"
             );
@@ -57,15 +59,19 @@ public class IcebergMetadataRepair {
             Table table = catalog.loadTable(tableId);
 
             System.out.println("Loaded table: " + tableId);
-            System.out.println("Attempting to remove file reference: " + fileUri);
+
+            List<String> uris = Files.readAllLines(Paths.get(filePath));
+            System.out.println("Loaded " + uris.size() + " URIs to delete.");
 
             // Remove the file reference from metadata
-            Tasks.foreach(fileUri)
+            Tasks.foreach(uris)
                     .retry(3)
                     .exponentialBackoff(100, 5000, 600000, 2.0)
                     .throwFailureWhenFinished()
                     .run(uri -> {
+                        System.out.println("Attempting to remove file reference: " + uri);
                         table.io().deleteFile(uri);
+                        table.newDelete().deleteFile(uri).commit();
                         System.out.println("Successfully deleted file reference: " + uri);
                     });
 
