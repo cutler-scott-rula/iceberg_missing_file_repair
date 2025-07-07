@@ -147,9 +147,9 @@ public class IcebergMetadataRepair {
                 }
             }
 
-            System.out.println("Press \"ENTER\" to continue...");
-            Scanner scanner = new Scanner(System.in);
-            scanner.nextLine();
+//            System.out.println("Press \"ENTER\" to continue...");
+//            Scanner scanner = new Scanner(System.in);
+//            scanner.nextLine();
 
             // Step 3: Batch delete invalid URIs
             Tasks.foreach(urisToDelete)
